@@ -1,9 +1,9 @@
 from PIL import Image, ImageDraw
-import colorsys
-import numpy as np 
-Width = 200
-Height = 200
-Max_iter = 30
+import time
+Width = 60000
+Height = 60000
+Max_iter = 500
+
 
 #Skalar ett värde från ett intervall till ett annat
 def scale(value, old_min, old_max, new_min, new_max):
@@ -13,47 +13,61 @@ def scale(value, old_min, old_max, new_min, new_max):
     return new_value
 
 #Kollar om punkten (x, y) finns i mandelbrotmängden
-#Om punktens absolutvärde blir över två ger den tillbaka antalet iterationer tills det hände
-def mandelbrot(x, y, max_iter): 
+#Om punktens absolutvärde går över två ger den tillbaka antalet iterationer det tog
+def mandelbrot(x, y, max_iter, Julia_mode=False, a=-0.391, b=-0.587): 
 
-    z = 0
-    c = complex(x, y)
+    if (Julia_mode):
+        z = complex(x, y)
+        c = complex(a, b)
+    else:
+        c = complex(x, y)
+        z = 0
+    
     for i in range(max_iter):
         z = z**2 + c
         if (abs(z) > 2):
             return i
+
     return max_iter
 
-def hsv2rgb(h,s,v):
-    return tuple(round(i * 255) for i in colorsys.hsv_to_rgb(h,s,v))
 
+#Färglägger en pixel svart om den nått max_iter
+#och absolutvärdet av z inte gått över två
 def calc_color(iter):
+
+    #här är c antalet iterationer som en procent
+    #av max_iter i decimalform
     c = scale(iter, 0, Max_iter, 0, 1)
-    angle = c * 10
     if (c == 1):
         return 0
     else:
-        #rgb_tuple = hsv2rgb(angle, 90, 100)
-        rgb_tuple = (round(255*c)*10, 0, 0)
-        return (255,255,255)
+        hue = round((359 * c))
+        value = round(255 * c * 25)
+        hsv_tuple = (hue, 255, value)
+
+        return hsv_tuple
+
+pixels = Image.new("HSV", (Width, Height))
+image = ImageDraw.Draw(pixels, "HSV")
 
 
-
-pixels = Image.new("RGB", (Width, Height))
-image = ImageDraw.Draw(pixels, "RGB")
+t0 = time.time()
 
 for row_index in range(Width):
+    print(f"Progress: {row_index / Width * 100}%")
     for col_index in range(Height):
 
         scaled_x_val = scale(row_index, 0, Width, -2, 2)
         scaled_y_val = scale(col_index, 0, Height, -2, 2)
         iter = mandelbrot(scaled_x_val, scaled_y_val, Max_iter)
-        rgb_tuple = calc_color(iter)
-        image.point((row_index, col_index), fill=rgb_tuple)
+        hsv_tuple = calc_color(iter)
+        image.point((row_index, col_index), fill=hsv_tuple)
 
+t1 = time.time()
     
+print(f"Code executed in {t1 - t0} s")
+if pixels.mode != 'RGB':
+    pixels = pixels.convert('RGB')
 
 
-
-
-pixels.save("Fractal.png")
+pixels.save("Fractal4.jpg")
